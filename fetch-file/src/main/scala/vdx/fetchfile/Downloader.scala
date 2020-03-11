@@ -20,6 +20,7 @@ trait Downloader[F[_]] {
 }
 
 object Downloader {
+
   def apply[F[_]: Concurrent: ContextShift]: Downloader[F] = new Downloader[F] {
     def fetch(
       url: URL,

@@ -5,11 +5,13 @@ import fs2._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{ByteArrayInputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.net.URL
-import java.io.ByteArrayOutputStream
+import scala.io.Source
+import java.security.MessageDigest
 
 class DownloaderSpec extends AnyFlatSpec with Matchers {
+
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
   "fetch" should "use the given backend to create the input stream" in {
@@ -33,6 +35,35 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
         content  <- IO.delay(out.toString)
       } yield content
     }).unsafeRunSync() should be("http://example.com/test.file")
+  }
+
+  it should "download the file correctly with the provided backend" in {
+    val downloader = Downloader[IO]
+
+    val downloadedBytes = (Blocker[IO].use { blocker =>
+      implicit val backend = HttpURLConnectionBackend[IO]
+      val out = new ByteArrayOutputStream()
+      for {
+        _ <- downloader.fetch(
+          new URL("http://localhost:8088/100MB.bin"),
+          Resource.fromAutoCloseable(IO.delay(out)),
+          blocker,
+          1024 * 64,
+          (s: Stream[IO, Byte]) => s.map(_ => ())
+        )
+        content <- IO.delay(out.toByteArray())
+      } yield content
+    }).unsafeRunSync()
+
+    downloadedBytes.length should be(1024 * 1024)
+    val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.shasum").mkString.trim()
+
+    val shaSum = MessageDigest.getInstance("SHA-1")
+      .digest(downloadedBytes)
+      .map("%02x".format(_))
+      .mkString
+
+    shaSum should be(expectedShaSum)
   }
 }
 
