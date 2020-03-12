@@ -1,7 +1,6 @@
 package vdx.fetchfile
 
 import cats.effect._
-import fs2._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -17,7 +16,12 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
   "fetch" should "use the given backend to create the input stream" in {
 
     implicit val backend: Backend[IO] =
-      (url: URL) => Resource.make(IO.delay(new ByteArrayInputStream(url.toString.getBytes())))(s => IO.delay(s.close()))
+      (url: URL) =>
+        Resource.make {
+          IO.delay((new ByteArrayInputStream(url.toString.getBytes()), url.toString().getBytes().length))
+        } {
+          case (s, _) => IO.delay(s.close())
+        }
 
     val downloader = Downloader[IO]
 
@@ -30,7 +34,6 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
           Resource.fromAutoCloseable(IO.delay(out)),
           blocker,
           1,
-          (s: Stream[IO, Byte]) => s.map(_ => ())
         )
         content  <- IO.delay(out.toString)
       } yield content
@@ -49,7 +52,6 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
           Resource.fromAutoCloseable(IO.delay(out)),
           blocker,
           1024 * 64,
-          (s: Stream[IO, Byte]) => s.map(_ => ())
         )
         content <- IO.delay(out.toByteArray())
       } yield content

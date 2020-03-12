@@ -13,5 +13,8 @@ lazy val fetchfile = (project in file("fetch-file"))
     )
   )
 
+lazy val examples = (project in file("examples"))
+  .dependsOn(fetchfile)
+
 lazy val root = (project in file("."))
-  .aggregate(fetchfile)
+  .aggregate(fetchfile, examples)

@@ -7,5 +7,5 @@ import java.io.InputStream
 
 package object fetchfile {
 
-  type Backend[F[_]] = URL => Resource[F, InputStream]
+  type Backend[F[_]] = URL => Resource[F, (InputStream, Int)]
 }

@@ -15,7 +15,7 @@ trait Downloader[F[_]] {
     out: Resource[F, OutputStream],
     ec: Blocker,
     chunkSize: Int,
-    progress: Pipe[F, Byte, Unit]
+    progress: Int => Pipe[F, Byte, Unit] = Progress.noop[F]
   )(implicit backend: Backend[F]): F[Unit]
 }
 
@@ -27,12 +27,12 @@ object Downloader {
       out: Resource[F, OutputStream],
       ec: Blocker,
       chunkSize: Int,
-      progress: Pipe[F, Byte, Unit]
+      progress: Int => Pipe[F, Byte, Unit] = Progress.noop
     )(implicit backend: Backend[F]): F[Unit] = {
       backend(url).product(out).use {
-        case (inStream, outStream) =>
+        case ((inStream, contentLength), outStream) =>
           readInputStream[F](Sync[F].delay(inStream), chunkSize, ec)
-            .observe(progress)
+            .observe(progress(contentLength))
             .through(writeOutputStream[F](Sync[F].delay(outStream), ec))
             .compile
             .drain
