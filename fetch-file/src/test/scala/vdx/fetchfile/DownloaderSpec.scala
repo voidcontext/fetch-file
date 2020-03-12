@@ -57,7 +57,7 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
       } yield content
     }).unsafeRunSync()
 
-    downloadedBytes.length should be(1024 * 1024)
+    downloadedBytes.length should be(1024 * 1024 * 100)
     val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.shasum").mkString.trim()
 
     val shaSum = MessageDigest.getInstance("SHA-1")
