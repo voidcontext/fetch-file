@@ -40,7 +40,7 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
     }).unsafeRunSync() should be("http://example.com/test.file")
   }
 
-  it should "download the file correctly with the provided backend" in {
+  it should "download the file correctly through the HttpURLConnectionBackend" in {
     val downloader = Downloader[IO]
 
     val downloadedBytes = (Blocker[IO].use { blocker =>

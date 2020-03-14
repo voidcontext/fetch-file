@@ -3,39 +3,48 @@ package vdx.fetchfile
 import cats.effect.Sync
 import fs2._
 
-import scala.concurrent.duration.{Duration, NANOSECONDS}
-
 import java.util.concurrent.atomic.AtomicLong
 import java.util.Locale
 
 object Progress {
   def noop[F[_]]: Int => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
 
-  def consoleProgress[F[_]: Sync]: Int => Pipe[F, Byte, Unit] =
-    custom[F] { (downloadedBytes, contentLength, _, downloadSpeed) =>
+  def consoleProgress[F[_]: Sync](implicit clock: Clock): Int => Pipe[F, Byte, Unit] =
+    custom[F] { (downloadedBytes, contentLength, elapsedTime, downloadSpeed) =>
       println(
-        s"\u001b[1A\u001b[100D\u001b[0KDownloaded ${bytesToString(downloadedBytes)} of" +
-          s" ${bytesToString(contentLength.toLong)} | ${bytesToString(downloadSpeed)}/s"
+        s"\u001b[1A\u001b[100D\u001b[0KDownloaded ${bytesToString(downloadedBytes)} of " +
+          s"${bytesToString(contentLength.toLong)} | " +
+          s"${bytesToString(downloadSpeed)}/s | " +
+          s"Time: ${millisToString(elapsedTime)}"
       )
     }
 
-  def custom[F[_]: Sync](f: (Long, Int, Duration, Long) => Unit): Int => Pipe[F, Byte, Unit] =
+  def custom[F[_]: Sync](
+    f: (Long, Int, Long, Long) => Unit,
+    chunkLimit: Option[Int] = None
+  )(implicit clock: Clock): Int => Pipe[F, Byte, Unit] =
     contentLength => { s =>
-      Stream.eval(Sync[F].delay(System.nanoTime()))
+      Stream.eval(Sync[F].delay(clock.nanoTime()))
         .flatMap { startTime =>
           val downloadedBytes = new AtomicLong(0)
 
-          s.chunks.map { chunk =>
-            val down = downloadedBytes.addAndGet(chunk.size.toLong)
-            val elapsedTime = Duration(System.nanoTime() - startTime, NANOSECONDS)
-            val speed = (down * 1000) / Math.max(elapsedTime.toMillis, 1)
+          chunkLimit
+            .map(s.chunkLimit(_))
+            .getOrElse(s.chunks)
+            .map { chunk =>
+              val down = downloadedBytes.addAndGet(chunk.size.toLong)
+              val elapsedTime = (clock.nanoTime() - startTime) / 1000000
+              val speed = (down * 1000) / Math.max(elapsedTime, 1)
 
-            f(down, contentLength, elapsedTime, speed)
-
-
-          }
+              f(down, contentLength, elapsedTime, speed)
+            }
         }
     }
+
+
+  def millisToString(millis: Long): String =
+    if (millis > 1000) s"${millis.toFloat / 1000} s"
+    else s"${millis} ms"
 
   // https://stackoverflow.com/questions/45885151/bytes-in-human-readable-format-with-idiomatic-scala
   def bytesToString(size: Long): String = {

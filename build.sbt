@@ -10,6 +10,8 @@ lazy val fetchfile = (project in file("fetch-file"))
       "co.fs2" %% "fs2-io" % "2.2.2",
 
       "org.scalatest" %% "scalatest" % "3.1.1" % "test",
+      "org.scalacheck" %% "scalacheck" % "1.14.1" % "test",
+      "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test
     )
   )
 
