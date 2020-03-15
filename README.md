@@ -1,4 +1,4 @@
-# fetch-file
+# fetch-file [![Build Status](https://travis-ci.org/voidcontext/fetch-file.svg?branch=master)](https://travis-ci.org/voidcontext/fetch-file)
 
 Simple library to download a potentially large file over a potentially slow network, while the progress is printed to the stdout.
 
