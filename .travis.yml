@@ -1,0 +1,13 @@
+language: scala
+scala:
+  - 2.13.1
+
+jdk:
+  - openjdk8
+
+services:
+  - docker
+
+before_install:
+  - sh docker/static_files/pre_build.sh
+  - docker-compose up -d
