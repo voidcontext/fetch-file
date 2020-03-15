@@ -1,10 +1,11 @@
-package vdx.fetchfile
-package examples
+package vdx.fetchfile.examples
 
-import cats.effect.{Blocker, IO, IOApp, ExitCode, Resource}
+import cats.effect.{Clock => _, _}
 import cats.syntax.functor._
+import vdx.fetchfile._
+
 import java.net.URL
-import java.io.ByteArrayOutputStream
+import java.io.{File, FileOutputStream}
 
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
@@ -12,13 +13,13 @@ object Main extends IOApp {
     implicit val backend: Backend[IO] = HttpURLConnectionBackend[IO]
     implicit val clock: Clock = Clock.system
 
+    val outFile = new File("/tmp/100MB.bin")
+
     Blocker[IO].use { blocker =>
-      val out = new ByteArrayOutputStream()
       Downloader[IO](blocker, 1024 * 8, Progress.consoleProgress[IO])
         .fetch(
           new URL("http://localhost:8088/100MB.bin"),
-          Resource.fromAutoCloseable(IO.delay(out)),
-
+          Resource.fromAutoCloseable(IO.delay(new FileOutputStream(outFile)))
         )
         .as(ExitCode.Success)
     }
