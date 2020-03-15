@@ -23,17 +23,19 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
           case (s, _) => IO.delay(s.close())
         }
 
-    val downloader = Downloader[IO]
 
 
     (Blocker[IO].use { blocker =>
       val out = new ByteArrayOutputStream()
+      val downloader = Downloader[IO](
+        blocker,
+        1,
+      )
+
       for {
         _        <- downloader.fetch(
           new URL("http://example.com/test.file"),
           Resource.fromAutoCloseable(IO.delay(out)),
-          blocker,
-          1,
         )
         content  <- IO.delay(out.toString)
       } yield content
@@ -41,17 +43,15 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "download the file correctly through the HttpURLConnectionBackend" in {
-    val downloader = Downloader[IO]
 
     val downloadedBytes = (Blocker[IO].use { blocker =>
       implicit val backend = HttpURLConnectionBackend[IO]
+      val downloader = Downloader[IO](blocker, 1024 * 8)
       val out = new ByteArrayOutputStream()
       for {
         _ <- downloader.fetch(
           new URL("http://localhost:8088/100MB.bin"),
           Resource.fromAutoCloseable(IO.delay(out)),
-          blocker,
-          1024 * 64,
         )
         content <- IO.delay(out.toByteArray())
       } yield content

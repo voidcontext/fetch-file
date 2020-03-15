@@ -14,13 +14,13 @@ object Main extends IOApp {
 
     Blocker[IO].use { blocker =>
       val out = new ByteArrayOutputStream()
-      Downloader[IO].fetch(
-        new URL("http://localhost:8088/100MB.bin"),
-        Resource.fromAutoCloseable(IO.delay(out)),
-        blocker,
-        1024,
-        Progress.consoleProgress[IO]
-      ).as(ExitCode.Success)
+      Downloader[IO](blocker, 1024 * 8, Progress.consoleProgress[IO])
+        .fetch(
+          new URL("http://localhost:8088/100MB.bin"),
+          Resource.fromAutoCloseable(IO.delay(out)),
+
+        )
+        .as(ExitCode.Success)
     }
   }
 }

@@ -10,25 +10,17 @@ import java.net.URL
 import cats.effect.ContextShift
 
 trait Downloader[F[_]] {
-  def fetch(
-    url: URL,
-    out: Resource[F, OutputStream],
-    ec: Blocker,
-    chunkSize: Int,
-    progress: Int => Pipe[F, Byte, Unit] = Progress.noop[F]
-  )(implicit backend: Backend[F]): F[Unit]
+  def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit]
 }
 
 object Downloader {
 
-  def apply[F[_]: Concurrent: ContextShift]: Downloader[F] = new Downloader[F] {
-    def fetch(
-      url: URL,
-      out: Resource[F, OutputStream],
-      ec: Blocker,
-      chunkSize: Int,
-      progress: Int => Pipe[F, Byte, Unit] = Progress.noop
-    )(implicit backend: Backend[F]): F[Unit] = {
+  def apply[F[_]: Concurrent: ContextShift](
+    ec: Blocker,
+    chunkSize: Int,
+    progress: Int => Pipe[F, Byte, Unit] = Progress.noop[F]
+  )(implicit backend: Backend[F]): Downloader[F] = new Downloader[F] {
+    def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit] =
       backend(url).product(out).use {
         case ((inStream, contentLength), outStream) =>
           readInputStream[F](Sync[F].delay(inStream), chunkSize, ec)
@@ -37,6 +29,5 @@ object Downloader {
             .compile
             .drain
       }
-    }
   }
 }
