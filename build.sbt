@@ -1,13 +1,20 @@
+import xerial.sbt.Sonatype._
+
 ThisBuild / name := "fetch-file"
 ThisBuild / scalaVersion := "2.13.1"
 ThisBuild / organization := "com.gaborpihaj"
-
-// Publish config
 ThisBuild / dynverSonatypeSnapshots := true
+
 ThisBuild / publishTo := sonatypePublishToBundle.value
-ThisBuild / licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
+
+lazy val publishSettings = List(
+  licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+  publishMavenStyle := true,
+  sonatypeProjectHosting := Some(GitHubHosting("voidcontext", "fetch-file", "gabor.pihaj@gmail.com")),
+)
 
 lazy val fetchfile = (project in file("fetch-file"))
+  .settings(publishSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "2.1.2",
