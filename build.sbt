@@ -2,6 +2,11 @@ ThisBuild / name := "fetch-file"
 ThisBuild / scalaVersion := "2.13.1"
 ThisBuild / organization := "com.gaborpihaj"
 
+// Publish config
+ThisBuild / dynverSonatypeSnapshots := true
+ThisBuild / publishTo := sonatypePublishToBundle.value
+ThisBuild / licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
+
 lazy val fetchfile = (project in file("fetch-file"))
   .settings(
     libraryDependencies ++= Seq(
@@ -16,7 +21,13 @@ lazy val fetchfile = (project in file("fetch-file"))
   )
 
 lazy val examples = (project in file("examples"))
+  .settings(
+    skip in publish := true,
+  )
   .dependsOn(fetchfile)
 
 lazy val root = (project in file("."))
+  .settings(
+    skip in publish := true,
+  )
   .aggregate(fetchfile, examples)
