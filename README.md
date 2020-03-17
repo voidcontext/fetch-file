@@ -1,8 +1,16 @@
-# fetch-file [![Build Status](https://travis-ci.org/voidcontext/fetch-file.svg?branch=master)](https://travis-ci.org/voidcontext/fetch-file)
+# fetch-file [![Build Status](https://travis-ci.org/voidcontext/fetch-file.svg?branch=master)](https://travis-ci.org/voidcontext/fetch-file) [![Latest Version](https://img.shields.io/github/v/release/voidcontext/fetch-file)](https://github.com/voidcontext/fetch-file/releases)
 
 Simple library to download a potentially large file over a potentially slow network, while the progress is printed to the stdout.
 
 [![asciicast](https://asciinema.org/a/7kvI5otiStozvSx4UVgEEjCSA.svg)](https://asciinema.org/a/7kvI5otiStozvSx4UVgEEjCSA)
+
+## Getting started
+
+Currently only Scala 2.13.x is supported.
+
+```scala
+   libraryDependencies += "com.gaborpihaj" %% "fetchfile" % "0.1.1"
+```
 
 ## Usage
 
