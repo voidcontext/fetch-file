@@ -1,13 +1,16 @@
 package vdx.fetchfile
 
 import cats.effect._
+import fs2.Stream
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.ByteArrayOutputStream
 import java.net.URL
-import scala.io.Source
 import java.security.MessageDigest
+
+import scala.io.Source
+
 
 class DownloaderSpec extends AnyFlatSpec with Matchers {
 
@@ -15,22 +18,16 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
 
   "fetch" should "use the given backend to create the input stream" in {
 
-    implicit val backend: Backend[IO] =
-      (url: URL) =>
-        Resource.make {
-          IO.delay((new ByteArrayInputStream(url.toString.getBytes()), url.toString().getBytes().length))
-        } {
-          case (s, _) => IO.delay(s.close())
-        }
+    implicit val backend: HttpBackend[IO] =
+      (url: URL) => {
+        val bytes = url.toString.getBytes()
 
-
+        IO.delay(bytes.length -> Stream.emits(bytes.toList).covary[IO])
+      }
 
     (Blocker[IO].use { blocker =>
       val out = new ByteArrayOutputStream()
-      val downloader = Downloader[IO](
-        blocker,
-        1,
-      )
+      val downloader = Downloader[IO](blocker)
 
       for {
         _        <- downloader.fetch(
@@ -45,8 +42,8 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
   it should "download the file correctly through the HttpURLConnectionBackend" in {
 
     val downloadedBytes = (Blocker[IO].use { blocker =>
-      implicit val backend = HttpURLConnectionBackend[IO]
-      val downloader = Downloader[IO](blocker, 1024 * 8)
+      implicit val backend = HttpURLConnectionBackend[IO](blocker, 1024 * 8)
+      val downloader = Downloader[IO](blocker)
       val out = new ByteArrayOutputStream()
       for {
         _ <- downloader.fetch(

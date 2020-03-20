@@ -1,11 +1,9 @@
 package vdx
 
-import cats.effect.Resource
+import fs2.Stream
 
 import java.net.URL
-import java.io.InputStream
 
 package object fetchfile {
-
-  type Backend[F[_]] = URL => Resource[F, (InputStream, Int)]
+  type HttpBackend[F[_]] = URL => F[(Int, Stream[F, Byte])] // What about the content length?
 }

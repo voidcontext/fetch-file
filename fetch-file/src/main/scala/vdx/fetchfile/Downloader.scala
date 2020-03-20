@@ -1,13 +1,11 @@
 package vdx.fetchfile
 
-import cats.effect.{Blocker, Concurrent, Resource, Sync}
-import cats.syntax.semigroupal._
+import cats.effect._
 import fs2.Pipe
-import fs2.io.{readInputStream, writeOutputStream}
+import fs2.io.writeOutputStream
 
 import java.io.OutputStream
 import java.net.URL
-import cats.effect.ContextShift
 
 trait Downloader[F[_]] {
   def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit]
@@ -17,15 +15,18 @@ object Downloader {
 
   def apply[F[_]: Concurrent: ContextShift](
     ec: Blocker,
-    chunkSize: Int,
     progress: Int => Pipe[F, Byte, Unit] = Progress.noop[F]
-  )(implicit backend: Backend[F]): Downloader[F] = new Downloader[F] {
+  )(implicit backend: HttpBackend[F]): Downloader[F] = new Downloader[F] {
     def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit] =
-      backend(url).product(out).use {
-        case ((inStream, contentLength), outStream) =>
-          readInputStream[F](Sync[F].delay(inStream), chunkSize, ec)
-            .observe(progress(contentLength))
-            .through(writeOutputStream[F](Sync[F].delay(outStream), ec))
+      (
+        for {
+          outStream <- out
+          lengthAndInputStream <- Resource.liftF(backend(url))
+        } yield (outStream, lengthAndInputStream)
+      ) .use {
+        case (outStream, (contentLength, inputStream)) =>
+           inputStream.observe(progress(contentLength))
+            .through(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
             .compile
             .drain
       }
