@@ -9,7 +9,7 @@ import java.util.Locale
 object Progress {
   def noop[F[_]]: Int => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
 
-  def consoleProgress[F[_]: Sync](implicit clock: Clock): Int => Pipe[F, Byte, Unit] =
+  def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): Int => Pipe[F, Byte, Unit] =
     custom[F] { (downloadedBytes, contentLength, elapsedTime, downloadSpeed) =>
       println(
         s"\u001b[1A\u001b[100D\u001b[0KDownloaded ${bytesToString(downloadedBytes)} of " +
@@ -22,7 +22,7 @@ object Progress {
   def custom[F[_]: Sync](
     f: (Long, Int, Long, Long) => Unit,
     chunkLimit: Option[Int] = None
-  )(implicit clock: Clock): Int => Pipe[F, Byte, Unit] =
+  )(implicit clock: MonotonicClock): Int => Pipe[F, Byte, Unit] =
     contentLength => { s =>
       Stream.eval(Sync[F].delay(clock.nanoTime()))
         .flatMap { startTime =>

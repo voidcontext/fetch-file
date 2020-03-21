@@ -1,6 +1,6 @@
 package vdx.fetchfile.examples
 
-import cats.effect.{Clock => _, _}
+import cats.effect._
 import cats.syntax.functor._
 import vdx.fetchfile._
 
@@ -10,7 +10,7 @@ import java.io.{File, FileOutputStream}
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
 
-    implicit val clock: Clock = Clock.system
+    implicit val clock: MonotonicClock = MonotonicClock.system
 
     val outFile = new File("/tmp/100MB.bin")
 

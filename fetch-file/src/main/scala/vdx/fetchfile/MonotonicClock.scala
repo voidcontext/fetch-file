@@ -5,15 +5,15 @@ package vdx.fetchfile
  * In case of cats.effect.Clock[F], the evaluation of IO makes the stream slightly slower.
  * To avoid this performance impact, but still keep the progress tracker testable we introduce our own clock interface.
  */
-trait Clock {
+trait MonotonicClock {
   def nanoTime(): Long
 }
 
-object Clock {
+object MonotonicClock {
   /**
    * Simple clock implementation based on System.nanoTime()
    */
-  def system(): Clock = new Clock {
+  def system(): MonotonicClock = new MonotonicClock {
     def nanoTime(): Long = System.nanoTime()
   }
 }

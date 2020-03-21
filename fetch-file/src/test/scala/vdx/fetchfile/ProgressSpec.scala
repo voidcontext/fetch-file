@@ -20,7 +20,7 @@ class ProgressSpec extends AnyFlatSpec with Checkers {
 
         implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
         var elapsedTime: Long = 0
-        implicit val clock: Clock = new Clock {
+        implicit val clock: MonotonicClock = new MonotonicClock {
           def nanoTime(): Long = {
             elapsedTime += 1000000
             elapsedTime
