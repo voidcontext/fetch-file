@@ -22,7 +22,7 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
       (url: URL) => {
         val bytes = url.toString.getBytes()
 
-        IO.delay(bytes.length -> Stream.emits(bytes.toList).covary[IO])
+        Resource.pure[IO, (Int, Stream[IO, Byte])](bytes.length -> Stream.emits(bytes.toList).covary[IO])
       }
 
     (Blocker[IO].use { blocker =>

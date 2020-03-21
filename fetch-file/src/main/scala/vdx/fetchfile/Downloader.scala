@@ -21,9 +21,9 @@ object Downloader {
       (
         for {
           outStream <- out
-          lengthAndInputStream <- Resource.liftF(backend(url))
+          lengthAndInputStream <- backend(url)
         } yield (outStream, lengthAndInputStream)
-      ) .use {
+      ).use {
         case (outStream, (contentLength, inputStream)) =>
            inputStream.observe(progress(contentLength))
             .through(writeOutputStream[F](Concurrent[F].delay(outStream), ec))

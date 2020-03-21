@@ -10,13 +10,14 @@ import java.io.{File, FileOutputStream}
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
 
-    implicit val backend: Backend[IO] = HttpURLConnectionBackend[IO]
     implicit val clock: Clock = Clock.system
 
     val outFile = new File("/tmp/100MB.bin")
 
     Blocker[IO].use { blocker =>
-      Downloader[IO](blocker, 1024 * 8, Progress.consoleProgress[IO])
+      implicit val backend: HttpBackend[IO] = HttpURLConnectionBackend[IO](blocker, 1024 * 16)
+
+      Downloader[IO](blocker, Progress.consoleProgress[IO])
         .fetch(
           new URL("http://localhost:8088/100MB.bin"),
           Resource.fromAutoCloseable(IO.delay(new FileOutputStream(outFile)))
