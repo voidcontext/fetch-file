@@ -14,7 +14,7 @@ Currently only Scala 2.13.x is supported.
 
 ## Usage
 
-This example downloads the content of the pre-generated test file into a file in `/tmp`. 
+This example downloads the content of the pre-generated test file into a file in `/tmp`.
 
 ```scala
 import cats.effect._
