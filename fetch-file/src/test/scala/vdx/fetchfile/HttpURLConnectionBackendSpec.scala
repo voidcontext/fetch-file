@@ -1,16 +1,19 @@
 package vdx.fetchfile
 
-import cats.effect._
+import cats.data.WriterT
 import cats.effect.Sync.catsWriterTSync
+import cats.effect._
 import cats.instances.vector._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import cats.data.WriterT
-import java.net.URL
+
 import scala.concurrent.ExecutionContext
 
+import java.io.InputStream
+import java.net.URL
+
 class HttpURLConnectionBackendSpec extends AnyFlatSpec with Matchers {
-  //  val contextShiftIO = ContextShift[IO]
+  val contextShiftIO = IO.contextShift(ExecutionContext.global)
 
   "HttpURLConnectionBackend" should "evaluate the connection on the given blocking context" in {
     type TestIO[A] = WriterT[IO, Vector[String], A]
@@ -19,18 +22,32 @@ class HttpURLConnectionBackendSpec extends AnyFlatSpec with Matchers {
 
     implicit val contextShiftTestIO: ContextShift[TestIO] = new ContextShift[TestIO] {
 
-      override def shift: TestIO[Unit] = WriterT.tell(Vector("ContextShift.shift"))
+      override def shift: TestIO[Unit] = WriterT.liftF(contextShiftIO.shift)
 
       override def evalOn[A](ec: ExecutionContext)(fa: TestIO[A]): TestIO[A] =
-        WriterT.tell[IO, Vector[String]](Vector(s"ContextShift.evalOn")).flatMap[A](_ => fa)
+        WriterT(
+          for {
+            l <- fa.written
+            r <- contextShiftIO.evalOn(ec)(fa.value.map(v => logWhenConnectionHasMade(v) -> v))
+          } yield (l ++ r._1, r._2)
+        )
+
+      private[this] def logWhenConnectionHasMade[A](a: A): Vector[String] =
+        a match {
+          case (_: Int, _:InputStream) => Vector(s"evalOn: ${Thread.currentThread().getName()}")
+          case _ => Vector.empty
+        }
     }
 
     Blocker[IO].use[IO, Unit] { blocker =>
       val backend = HttpURLConnectionBackend[TestIO](blocker, 1024 * 8)
+      val url = new URL("http://localhost:8088/100MB.bin")
 
-      val (logs, _) = backend(new URL("http://localhost:8088/100MB.bin")).use[TestIO, Unit](_ => WriterT.value(())).run.unsafeRunSync()
+      val (logs, _) = backend(url).use[TestIO, Unit](_ => WriterT.value(())).run.unsafeRunSync()
 
-      logs should be(Vector("ContextShift.evalOn"))
+      logs should have(size(1))
+
+      logs(0) should startWith("evalOn: cats-effect-blocker-")
 
       IO.unit
     }.unsafeRunSync()
