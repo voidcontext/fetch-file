@@ -7,8 +7,14 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.Locale
 
 object Progress {
+  /**
+   * A progress tracker that does nothing
+   */
   def noop[F[_]]: Int => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
 
+  /**
+   * A console based progress tracker which needs control character support as it refreshes the status in place.
+   */
   def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): Int => Pipe[F, Byte, Unit] =
     custom[F] { (downloadedBytes, contentLength, elapsedTime, downloadSpeed) =>
       println(
@@ -19,6 +25,9 @@ object Progress {
       )
     }
 
+  /**
+   * Helps building custom progress trackers
+   */
   def custom[F[_]: Sync](
     f: (Long, Int, Long, Long) => Unit,
     chunkLimit: Option[Int] = None
