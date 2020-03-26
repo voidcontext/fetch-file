@@ -27,26 +27,24 @@ trait Downloader[F[_]] {
 }
 
 object Downloader {
+  final case class ContentLength(value: Long) extends AnyVal
 
   /**
    * Creates a `Downloader` that is going to run all blocking operations on the given ExecutionContext.
    */
   def apply[F[_]: Concurrent: ContextShift](
     ec: Blocker,
-    progress: Int => Pipe[F, Byte, Unit] = Progress.noop[F]
-  )(implicit backend: HttpBackend[F]): Downloader[F] = new Downloader[F] {
+    progress: ContentLength => Pipe[F, Byte, Unit] = Progress.noop[F]
+  )(implicit client: HttpClient[F]): Downloader[F] = new Downloader[F] {
     def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit] =
-      (
-        for {
-          outStream <- out
-          lengthAndInputStream <- backend(url)
-        } yield (outStream, lengthAndInputStream)
-      ).use {
-        case (outStream, (contentLength, inputStream)) =>
-           inputStream.observe(progress(contentLength))
+      out.use { outStream =>
+        client(url) { (contentLength, body) =>
+          body.observe(progress(contentLength))
             .through(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
             .compile
             .drain
+
+        }
       }
   }
 }

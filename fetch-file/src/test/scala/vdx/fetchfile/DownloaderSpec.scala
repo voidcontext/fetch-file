@@ -10,19 +10,20 @@ import java.net.URL
 import java.security.MessageDigest
 
 import scala.io.Source
+import vdx.fetchfile.Downloader.ContentLength
 
 
 class DownloaderSpec extends AnyFlatSpec with Matchers {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
-  "fetch" should "use the given backend to create the input stream" in {
+  "fetch" should "use the given client to create the stream representing the content" in {
 
-    implicit val backend: HttpBackend[IO] =
-      (url: URL) => {
+    implicit val client: HttpClient[IO] =
+      url => sink => {
         val bytes = url.toString.getBytes()
 
-        Resource.pure[IO, (Int, Stream[IO, Byte])](bytes.length -> Stream.emits(bytes.toList).covary[IO])
+        sink(ContentLength(bytes.length.toLong), Stream.emits(bytes.toList).covary[IO])
       }
 
     (Blocker[IO].use { blocker =>
@@ -39,10 +40,10 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
     }).unsafeRunSync() should be("http://example.com/test.file")
   }
 
-  it should "download the file correctly through the HttpURLConnectionBackend" in {
+  it should "download the file correctly via the HttpURLConnectionClient" in {
 
     val downloadedBytes = (Blocker[IO].use { blocker =>
-      implicit val backend = HttpURLConnectionBackend[IO](blocker, 1024 * 8)
+      implicit val client = HttpURLConnectionClient[IO](blocker, 1024 * 8)
       val downloader = Downloader[IO](blocker)
       val out = new ByteArrayOutputStream()
       for {

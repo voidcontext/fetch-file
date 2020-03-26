@@ -15,7 +15,7 @@ object Main extends IOApp {
     val outFile = new File("/tmp/100MB.bin")
 
     Blocker[IO].use { blocker =>
-      implicit val backend: HttpBackend[IO] = HttpURLConnectionBackend[IO](blocker, 1024 * 16)
+      implicit val backend: HttpClient[IO] = HttpURLConnectionClient[IO](blocker, 1024 * 16)
 
       Downloader[IO](blocker, Progress.consoleProgress[IO])
         .fetch(

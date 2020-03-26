@@ -12,10 +12,10 @@ import scala.concurrent.ExecutionContext
 import java.io.InputStream
 import java.net.URL
 
-class HttpURLConnectionBackendSpec extends AnyFlatSpec with Matchers {
+class HttpURLConnectionClientSpec extends AnyFlatSpec with Matchers {
   val contextShiftIO = IO.contextShift(ExecutionContext.global)
 
-  "HttpURLConnectionBackend" should "evaluate the connection on the given blocking context" in {
+  "HttpURLConnectionClient" should "evaluate the connection on the given blocking context" in {
     type TestIO[A] = WriterT[IO, Vector[String], A]
 
     implicit val syncTestIO: Sync[TestIO] = catsWriterTSync[IO, Vector[String]]
@@ -40,10 +40,10 @@ class HttpURLConnectionBackendSpec extends AnyFlatSpec with Matchers {
     }
 
     Blocker[IO].use[IO, Unit] { blocker =>
-      val backend = HttpURLConnectionBackend[TestIO](blocker, 1024 * 8)
+      val client = HttpURLConnectionClient[TestIO](blocker, 1024 * 8)
       val url = new URL("http://localhost:8088/100MB.bin")
 
-      val (logs, _) = backend(url).use[TestIO, Unit](_ => WriterT.value(())).run.unsafeRunSync()
+      val (logs, _) = client(url)((_, _) => WriterT.value(())).run.unsafeRunSync()
 
       logs should have(size(1))
 

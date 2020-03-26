@@ -8,6 +8,7 @@ import org.scalatestplus.scalacheck.Checkers
 import cats.effect.ContextShift
 import org.scalacheck.{Gen, Prop}
 import scala.concurrent.ExecutionContext
+import vdx.fetchfile.Downloader.ContentLength
 
 class ProgressSpec extends AnyFlatSpec with Checkers {
 
@@ -30,9 +31,9 @@ class ProgressSpec extends AnyFlatSpec with Checkers {
 
         var chunksOK = true
 
-        val progress = (downloadedBytes: Long, contentLength: Int, elapsedTime: Long, downloadSpeed: Long) => {
+        val progress = (downloadedBytes: Long, contentLength: ContentLength, elapsedTime: Long, downloadSpeed: Long) => {
           chunksOK = chunksOK &&
-            contentLength == bs.length &&
+            contentLength.value == bs.length.toLong &&
             elapsedTime == downloadedBytes &&
             downloadSpeed == (downloadedBytes * 1000) / elapsedTime
         }
@@ -40,7 +41,7 @@ class ProgressSpec extends AnyFlatSpec with Checkers {
         val pipe = Progress.custom[IO](progress, Some(1))
 
         Stream.emits[IO, Byte](bs)
-          .observe(pipe(bs.length))
+          .observe(pipe(ContentLength(bs.length.toLong)))
           .compile
           .drain
           .unsafeRunSync()

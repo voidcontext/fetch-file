@@ -6,27 +6,27 @@ import fs2.io.{readInputStream}
 
 import java.net.{HttpURLConnection, URL}
 import java.io.InputStream
+import vdx.fetchfile.Downloader.ContentLength
 
 
 /**
- * A HttpBackend implementation based on java.net.HttpURLConnection.
+ * A HttpClient implementation based on java.net.HttpURLConnection.
  */
-object HttpURLConnectionBackend {
+object HttpURLConnectionClient {
   /**
-   * Creates a HttpBackend instance that is using java.net.HttpUrlConnection to make a HTTP request.
+   * Creates a HttpClient instance that is using java.net.HttpUrlConnection to make a HTTP request.
    *
    * The evaluation of the blocking HTTP call and the fs2.Stream creation from the java InputStream
    * is using the given execution context wrapped in Blocker.
    */
-  def apply[F[_]: Sync: ContextShift](blocker: Blocker, chunkSize: Int): HttpBackend[F] =
-    url =>
-  for {
-    connResource              <- makeConnectionResource(url, blocker)
-    (contentLength, inStream) = connResource
-    fs2Stream                 <- Resource.liftF(
-      Sync[F].delay(readInputStream(Sync[F].delay(inStream), chunkSize, blocker))
-    )
-  } yield contentLength -> fs2Stream
+  def apply[F[_]: Sync: ContextShift](blocker: Blocker, chunkSize: Int): HttpClient[F] =
+    url => sink =>
+     makeConnectionResource(url, blocker)
+       .map {
+         case (contentLength, inputStream) =>
+           ContentLength(contentLength.toLong) -> readInputStream(Sync[F].delay(inputStream), chunkSize, blocker)
+       }
+       .use(sink.tupled)
 
 
   private[this] def makeConnectionResource[F[_]: Sync: ContextShift](

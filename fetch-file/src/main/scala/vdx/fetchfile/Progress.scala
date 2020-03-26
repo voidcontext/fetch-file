@@ -2,6 +2,7 @@ package vdx.fetchfile
 
 import cats.effect.Sync
 import fs2._
+import vdx.fetchfile.Downloader.ContentLength
 
 import java.util.concurrent.atomic.AtomicLong
 import java.util.Locale
@@ -10,16 +11,16 @@ object Progress {
   /**
    * A progress tracker that does nothing
    */
-  def noop[F[_]]: Int => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
+  def noop[F[_]]: ContentLength => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
 
   /**
    * A console based progress tracker which needs control character support as it refreshes the status in place.
    */
-  def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): Int => Pipe[F, Byte, Unit] =
+  def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Unit] =
     custom[F] { (downloadedBytes, contentLength, elapsedTime, downloadSpeed) =>
       println(
         s"\u001b[1A\u001b[100D\u001b[0KDownloaded ${bytesToString(downloadedBytes)} of " +
-          s"${bytesToString(contentLength.toLong)} | " +
+          s"${bytesToString(contentLength.value)} | " +
           s"${bytesToString(downloadSpeed)}/s | " +
           s"Time: ${millisToString(elapsedTime)}"
       )
@@ -29,9 +30,9 @@ object Progress {
    * Helps building custom progress trackers
    */
   def custom[F[_]: Sync](
-    f: (Long, Int, Long, Long) => Unit,
+    f: (Long, ContentLength, Long, Long) => Unit,
     chunkLimit: Option[Int] = None
-  )(implicit clock: MonotonicClock): Int => Pipe[F, Byte, Unit] =
+  )(implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Unit] =
     contentLength => { s =>
       Stream.eval(Sync[F].delay(clock.nanoTime()))
         .flatMap { startTime =>
@@ -49,7 +50,6 @@ object Progress {
             }
         }
     }
-
 
   def millisToString(millis: Long): String =
     if (millis > 1000) s"${millis.toFloat / 1000} s"

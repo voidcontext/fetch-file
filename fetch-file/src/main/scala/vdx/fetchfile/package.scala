@@ -1,14 +1,17 @@
 package vdx
 
-import cats.effect.Resource
 import fs2.Stream
 
 import java.net.URL
 
 package object fetchfile {
   /**
-   * A HttpBackend is a function from URL to Resource that's a tuple of
+   * Sink represents a function that takes the content length and the content as a stream and consumes it
+   */
+  type Sink[F[_]] = (Downloader.ContentLength, Stream[F, Byte]) => F[Unit]
+  /**
+   * A HttpClient is a function from a URL and Sink function
    * the content length and the content itself as an fs2 Stream
    */
-  type HttpBackend[F[_]] = URL => Resource[F, (Int, Stream[F, Byte])]
+  type HttpClient[F[_]] = URL => Sink[F] => F[Unit]
 }
