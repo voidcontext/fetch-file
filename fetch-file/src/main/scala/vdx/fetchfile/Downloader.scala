@@ -1,7 +1,10 @@
 package vdx.fetchfile
 
 import cats.effect._
-import fs2.Pipe
+import cats.syntax.eq._
+import cats.instances.string._
+import cats.syntax.functor._
+import fs2.{Pipe, Stream}
 import fs2.io.writeOutputStream
 
 import java.io.OutputStream
@@ -23,7 +26,7 @@ trait Downloader[F[_]] {
   /**
    * Fetches the given URL and popuplates the given output stream.
    */
-  def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit]
+  def fetch(url: URL, out: Resource[F, OutputStream], sha256Sum: Option[String] = None): F[Unit]
 }
 
 object Downloader {
@@ -34,17 +37,34 @@ object Downloader {
    */
   def apply[F[_]: Concurrent: ContextShift](
     ec: Blocker,
-    progress: ContentLength => Pipe[F, Byte, Unit] = Progress.noop[F]
+    progress: ContentLength => Pipe[F, Byte, Unit] = Progress.noop[F],
   )(implicit client: HttpClient[F]): Downloader[F] = new Downloader[F] {
-    def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit] =
+    def fetch(url: URL, out: Resource[F, OutputStream], sha256Sum: Option[String] = None): F[Unit] =
       out.use { outStream =>
         client(url) { (contentLength, body) =>
           body.observe(progress(contentLength))
-            .through(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
+            // The writeOutputStream pipe returns Unit so it is safe to write the final output using observe
+            .observe(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
+            .through(maybeCompareSHA(sha256Sum))
             .compile
             .drain
-
         }
       }
+
+    def maybeCompareSHA(sha256: Option[String]): Pipe[F, Byte, Unit] =
+      stream =>
+        sha256.map[Stream[F, Unit]] { expectedSHA =>
+          Stream.eval(
+            // We'll compute the sh256 hash of the downloaded file
+            stream.through(fs2.hash.sha256)
+              .compile
+              .toVector
+          ).flatMap { hashBytes =>
+            val hash = hashBytes.map("%02x".format(_)).mkString
+            if (hash === expectedSHA.toLowerCase()) Stream.emit(()).covary[F]
+            else Stream.raiseError(new Exception(s"Sha256 sum doesn't match (expected: $expectedSHA, got: $hash)"))
+          }
+        }
+        .getOrElse(stream.void)
   }
 }

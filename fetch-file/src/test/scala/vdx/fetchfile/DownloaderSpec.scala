@@ -56,14 +56,39 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
     }).unsafeRunSync()
 
     downloadedBytes.length should be(1024 * 1024 * 100)
-    val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.shasum").mkString.trim()
+    val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.sha256").mkString.trim()
 
-    val shaSum = MessageDigest.getInstance("SHA-1")
+    val shaSum = MessageDigest.getInstance("SHA-256")
       .digest(downloadedBytes)
       .map("%02x".format(_))
       .mkString
 
     shaSum should be(expectedShaSum)
   }
+
+  it should "be successful when the given shasum is correct" in {
+    val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.sha256").mkString.trim()
+
+    download(expectedShaSum).attempt.unsafeRunSync() should be(Right(()))
+  }
+
+  it should "be fail when the given shasum is incorrect" in {
+    download("some-wrong-sha-sum").attempt.unsafeRunSync() should be(a[Left[_, _]])
+  }
+
+  def download(shaSum: String): IO[Unit] =
+    Blocker[IO].use { blocker =>
+      implicit val client = HttpURLConnectionClient[IO](blocker, 1024 * 8)
+      val downloader = Downloader[IO](blocker)
+      val out = new ByteArrayOutputStream()
+      for {
+        _ <- downloader.fetch(
+          new URL("http://localhost:8088/100MB.bin"),
+          Resource.fromAutoCloseable(IO.delay(out)),
+          sha256Sum = Option(shaSum)
+        )
+        _ <- IO.delay(out.toByteArray())
+      } yield ()
+    }
 }
 
