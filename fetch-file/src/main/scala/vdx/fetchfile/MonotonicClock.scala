@@ -10,6 +10,7 @@ trait MonotonicClock {
 }
 
 object MonotonicClock {
+
   /**
    * Simple clock implementation based on System.nanoTime()
    */
@@ -17,4 +18,3 @@ object MonotonicClock {
     def nanoTime(): Long = System.nanoTime()
   }
 }
-

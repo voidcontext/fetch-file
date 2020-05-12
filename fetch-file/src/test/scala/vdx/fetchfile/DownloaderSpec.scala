@@ -4,14 +4,13 @@ import cats.effect._
 import fs2.Stream
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import vdx.fetchfile.Downloader.ContentLength
+
+import scala.io.Source
 
 import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.security.MessageDigest
-
-import scala.io.Source
-import vdx.fetchfile.Downloader.ContentLength
-
 
 class DownloaderSpec extends AnyFlatSpec with Matchers {
 
@@ -20,22 +19,23 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
   "fetch" should "use the given client to create the stream representing the content" in {
 
     implicit val client: HttpClient[IO] =
-      url => sink => {
-        val bytes = url.toString.getBytes()
+      url =>
+        sink => {
+          val bytes = url.toString.getBytes()
 
-        sink(ContentLength(bytes.length.toLong), Stream.emits(bytes.toList).covary[IO])
-      }
+          sink(ContentLength(bytes.length.toLong), Stream.emits(bytes.toList).covary[IO])
+        }
 
     (Blocker[IO].use { blocker =>
       val out = new ByteArrayOutputStream()
       val downloader = Downloader[IO](blocker)
 
       for {
-        _        <- downloader.fetch(
+        _ <- downloader.fetch(
           new URL("http://example.com/test.file"),
-          Resource.fromAutoCloseable(IO.delay(out)),
+          Resource.fromAutoCloseable(IO.delay(out))
         )
-        content  <- IO.delay(out.toString)
+        content <- IO.delay(out.toString)
       } yield content
     }).unsafeRunSync() should be("http://example.com/test.file")
   }
@@ -49,7 +49,7 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
       for {
         _ <- downloader.fetch(
           new URL("http://localhost:8088/100MB.bin"),
-          Resource.fromAutoCloseable(IO.delay(out)),
+          Resource.fromAutoCloseable(IO.delay(out))
         )
         content <- IO.delay(out.toByteArray())
       } yield content
@@ -58,7 +58,8 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
     downloadedBytes.length should be(1024 * 1024 * 100)
     val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.sha256").mkString.trim()
 
-    val shaSum = MessageDigest.getInstance("SHA-256")
+    val shaSum = MessageDigest
+      .getInstance("SHA-256")
       .digest(downloadedBytes)
       .map("%02x".format(_))
       .mkString
@@ -91,4 +92,3 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
       } yield ()
     }
 }
-

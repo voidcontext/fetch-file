@@ -34,23 +34,25 @@ class HttpURLConnectionClientSpec extends AnyFlatSpec with Matchers {
 
       private[this] def logWhenConnectionHasMade[A](a: A): Vector[String] =
         a match {
-          case (_: Int, _:InputStream) => Vector(s"evalOn: ${Thread.currentThread().getName()}")
-          case _ => Vector.empty
+          case (_: Int, _: InputStream) => Vector(s"evalOn: ${Thread.currentThread().getName()}")
+          case _                        => Vector.empty
         }
     }
 
-    Blocker[IO].use[IO, Unit] { blocker =>
-      val client = HttpURLConnectionClient[TestIO](blocker, 1024 * 8)
-      val url = new URL("http://localhost:8088/100MB.bin")
+    Blocker[IO]
+      .use[IO, Unit] { blocker =>
+        val client = HttpURLConnectionClient[TestIO](blocker, 1024 * 8)
+        val url = new URL("http://localhost:8088/100MB.bin")
 
-      val (logs, _) = client(url)((_, _) => WriterT.value(())).run.unsafeRunSync()
+        val (logs, _) = client(url)((_, _) => WriterT.value(())).run.unsafeRunSync()
 
-      logs should have(size(1))
+        logs should have(size(1))
 
-      logs(0) should startWith("evalOn: cats-effect-blocker-")
+        logs(0) should startWith("evalOn: cats-effect-blocker-")
 
-      IO.unit
-    }.unsafeRunSync()
+        IO.unit
+      }
+      .unsafeRunSync()
 
   }
 }

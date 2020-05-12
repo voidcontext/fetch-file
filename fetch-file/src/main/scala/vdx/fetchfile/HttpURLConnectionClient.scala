@@ -1,18 +1,17 @@
-
 package vdx.fetchfile
 
 import cats.effect._
 import fs2.io.{readInputStream}
-
-import java.net.{HttpURLConnection, URL}
-import java.io.InputStream
 import vdx.fetchfile.Downloader.ContentLength
 
+import java.io.InputStream
+import java.net.{HttpURLConnection, URL}
 
 /**
  * A HttpClient implementation based on java.net.HttpURLConnection.
  */
 object HttpURLConnectionClient {
+
   /**
    * Creates a HttpClient instance that is using java.net.HttpUrlConnection to make a HTTP request.
    *
@@ -20,21 +19,20 @@ object HttpURLConnectionClient {
    * is using the given execution context wrapped in Blocker.
    */
   def apply[F[_]: Sync: ContextShift](blocker: Blocker, chunkSize: Int): HttpClient[F] =
-    url => sink =>
-     makeConnectionResource(url, blocker)
-       .map {
-         case (contentLength, inputStream) =>
-           ContentLength(contentLength.toLong) -> readInputStream(Sync[F].delay(inputStream), chunkSize, blocker)
-       }
-       .use(sink.tupled)
-
+    url =>
+      sink =>
+        makeConnectionResource(url, blocker).map {
+          case (contentLength, inputStream) =>
+            ContentLength(contentLength.toLong) -> readInputStream(Sync[F].delay(inputStream), chunkSize, blocker)
+        }.use(sink.tupled)
 
   private[this] def makeConnectionResource[F[_]: Sync: ContextShift](
     url: URL,
     blocker: Blocker
   ): Resource[F, (Int, InputStream)] =
-    Resource.make(makeConnection(url, blocker)) { case (_, inStream) => Sync[F].delay(inStream.close())}
+    Resource.make(makeConnection(url, blocker)) { case (_, inStream) => Sync[F].delay(inStream.close()) }
 
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   private[this] def makeConnection[F[_]: Sync: ContextShift](url: URL, blocker: Blocker): F[(Int, InputStream)] =
     ContextShift[F].blockOn(blocker)(
       Sync[F].delay {

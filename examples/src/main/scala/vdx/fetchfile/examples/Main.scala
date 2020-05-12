@@ -4,8 +4,8 @@ import cats.effect._
 import cats.syntax.functor._
 import vdx.fetchfile._
 
-import java.net.URL
 import java.io.{File, FileOutputStream}
+import java.net.URL
 
 object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {

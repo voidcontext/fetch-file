@@ -4,10 +4,11 @@ import cats.effect.Sync
 import fs2._
 import vdx.fetchfile.Downloader.ContentLength
 
-import java.util.concurrent.atomic.AtomicLong
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 
 object Progress {
+
   /**
    * A progress tracker that does nothing
    */
@@ -33,9 +34,9 @@ object Progress {
     f: (Long, ContentLength, Long, Long) => Unit,
     chunkLimit: Option[Int] = None
   )(implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Unit] =
-    contentLength => { s =>
-      Stream.eval(Sync[F].delay(clock.nanoTime()))
-        .flatMap { startTime =>
+    contentLength => {
+      s =>
+        Stream.eval(Sync[F].delay(clock.nanoTime())).flatMap { startTime =>
           val downloadedBytes = new AtomicLong(0)
 
           chunkLimit
@@ -64,15 +65,15 @@ object Progress {
 
     val (value, unit) = {
       if (size >= 2 * TB) {
-        (size.asInstanceOf[Double] / TB, "TB")
+        (size.toDouble / TB, "TB")
       } else if (size >= 2 * GB) {
-        (size.asInstanceOf[Double] / GB, "GB")
+        (size.toDouble / GB, "GB")
       } else if (size >= 2 * MB) {
-        (size.asInstanceOf[Double] / MB, "MB")
+        (size.toDouble / MB, "MB")
       } else if (size >= 2 * KB) {
-        (size.asInstanceOf[Double] / KB, "KB")
+        (size.toDouble / KB, "KB")
       } else {
-        (size.asInstanceOf[Double], "B")
+        (size.toDouble, "B")
       }
     }
     "%.1f %s".formatLocal(Locale.US, value, unit)
