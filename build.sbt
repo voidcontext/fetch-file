@@ -25,12 +25,13 @@ lazy val fetchfile = (project in file("fetch-file"))
   .settings(
     name := "fetch-file",
     libraryDependencies ++= Seq(
-      "org.typelevel"     %% "cats-effect"              % catsEffectVersion,
-      "co.fs2"            %% "fs2-core"                 % fs2Version,
-      "co.fs2"            %% "fs2-io"                   % fs2Version,
-      "org.scalatest"     %% "scalatest"                % scalaTestVersion % Test,
-      "org.scalacheck"    %% "scalacheck"               % "1.14.1" % Test,
-      "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test
+      "org.typelevel"     %% "cats-effect"     % catsEffectVersion,
+      "co.fs2"            %% "fs2-core"        % fs2Version,
+      "co.fs2"            %% "fs2-io"          % fs2Version,
+      "org.scalatest"     %% "scalatest"       % scalaTestVersion % Test,
+      "org.scalacheck"    %% "scalacheck"      % "1.14.1" % Test,
+      "org.scalatestplus" %% "scalacheck-1-14" % "3.1.1.1" % Test,
+      "org.typelevel"     %% "claimant"        % "0.1.3" % Test
     ),
     addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
     addCompilerPlugin(scalafixSemanticdb)

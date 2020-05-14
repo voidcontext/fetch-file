@@ -1,10 +1,8 @@
 package vdx.fetchfile
 
 import cats.effect._
-import fs2.Stream
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import vdx.fetchfile.Downloader.ContentLength
 
 import scala.io.Source
 
@@ -12,19 +10,13 @@ import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.security.MessageDigest
 
-class DownloaderSpec extends AnyFlatSpec with Matchers {
+class DownloaderSpec extends AnyFlatSpec with Matchers with TestHttpClient {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
   "fetch" should "use the given client to create the stream representing the content" in {
 
-    implicit val client: HttpClient[IO] =
-      url =>
-        sink => {
-          val bytes = url.toString.getBytes()
-
-          sink(ContentLength(bytes.length.toLong), Stream.emits(bytes.toList).covary[IO])
-        }
+    implicit val client: HttpClient[IO] = makeClient(_.toString().getBytes())
 
     (Blocker[IO].use { blocker =>
       val out = new ByteArrayOutputStream()
@@ -66,29 +58,4 @@ class DownloaderSpec extends AnyFlatSpec with Matchers {
 
     shaSum should be(expectedShaSum)
   }
-
-  it should "be successful when the given shasum is correct" in {
-    val expectedShaSum = Source.fromFile("docker/static-files/100MB.bin.sha256").mkString.trim()
-
-    download(expectedShaSum).attempt.unsafeRunSync() should be(Right(()))
-  }
-
-  it should "be fail when the given shasum is incorrect" in {
-    download("some-wrong-sha-sum").attempt.unsafeRunSync() should be(a[Left[_, _]])
-  }
-
-  def download(shaSum: String): IO[Unit] =
-    Blocker[IO].use { blocker =>
-      implicit val client = HttpURLConnectionClient[IO](blocker, 1024 * 8)
-      val downloader = Downloader[IO](blocker)
-      val out = new ByteArrayOutputStream()
-      for {
-        _ <- downloader.fetch(
-          new URL("http://localhost:8088/100MB.bin"),
-          Resource.fromAutoCloseable(IO.delay(out)),
-          sha256Sum = Option(shaSum)
-        )
-        _ <- IO.delay(out.toByteArray())
-      } yield ()
-    }
 }

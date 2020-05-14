@@ -4,5 +4,10 @@ DIR="$(dirname $0)"
 
 echo "Destination dir: $DIR"
 
-head -c 104857600 </dev/urandom > $DIR/100MB.bin
-shasum -a 256 $DIR/100MB.bin | awk '{print $1}' > $DIR/100MB.bin.sha256
+for size in 10 100; do
+  filename=${size}MB.bin
+  head -c $(($size * 1048576)) </dev/urandom > $DIR/$filename
+  gzip -k -f $filename
+  shasum -a 256 $DIR/$filename | awk '{print $1}' > $DIR/$filename.sha256
+  shasum -a 256 $DIR/$filename.gz | awk '{print $1}' > $DIR/$filename.gz.sha256
+done

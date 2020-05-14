@@ -1,11 +1,12 @@
 package vdx.fetchfile
 
+import cats.Foldable
 import cats.effect._
-import cats.instances.string._
-import cats.syntax.eq._
+import cats.instances.list._
+import cats.syntax.foldable._
 import cats.syntax.functor._
+import fs2.Pipe
 import fs2.io.writeOutputStream
-import fs2.{Pipe, Stream}
 
 import java.io.OutputStream
 import java.net.URL
@@ -27,7 +28,24 @@ trait Downloader[F[_]] {
   /**
    * Fetches the given URL and popuplates the given output stream.
    */
-  def fetch(url: URL, out: Resource[F, OutputStream], sha256Sum: Option[String] = None): F[Unit]
+  def fetch(url: URL, out: Resource[F, OutputStream]): F[Unit] =
+    fetch[List](url, out, List.empty, streamUnit)
+
+  def fetch[G[_]: Foldable](url: URL, out: Resource[F, OutputStream], pipes: G[Pipe[F, Byte, Byte]]): F[Unit] =
+    fetch[G](url, out, pipes, streamUnit)
+
+  def fetch(url: URL, out: Resource[F, OutputStream], last: Pipe[F, Byte, Unit]): F[Unit] =
+    fetch[List](url, out, List.empty, last)
+
+  def fetch[G[_]: Foldable](
+    url: URL,
+    out: Resource[F, OutputStream],
+    pipes: G[Pipe[F, Byte, Byte]],
+    last: Pipe[F, Byte, Unit]
+  ): F[Unit]
+
+  private def streamUnit[A]: Pipe[F, A, Unit] =
+    _.void
 }
 
 object Downloader {
@@ -40,34 +58,21 @@ object Downloader {
     ec: Blocker,
     progress: ContentLength => Pipe[F, Byte, Unit] = Progress.noop[F]
   )(implicit client: HttpClient[F]): Downloader[F] = new Downloader[F] {
-    def fetch(url: URL, out: Resource[F, OutputStream], sha256Sum: Option[String] = None): F[Unit] =
+    def fetch[G[_]: Foldable](
+      url: URL,
+      out: Resource[F, OutputStream],
+      pipes: G[Pipe[F, Byte, Byte]],
+      last: Pipe[F, Byte, Unit]
+    ): F[Unit] =
       out.use { outStream =>
         client(url) { (contentLength, body) =>
-          body
-            .observe(progress(contentLength))
-            // The writeOutputStream pipe returns Unit so it is safe to write the final output using observe
+          pipes
+            .foldLeft(body.observe(progress(contentLength)))(_ through _)
             .observe(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
-            .through(maybeCompareSHA(sha256Sum))
+            .through(last)
             .compile
             .drain
         }
       }
-
-    def maybeCompareSHA(sha256: Option[String]): Pipe[F, Byte, Unit] =
-      stream =>
-        sha256
-          .map[Stream[F, Unit]] { expectedSHA =>
-            Stream
-              .eval(
-                // We'll compute the sh256 hash of the downloaded file
-                stream.through(fs2.hash.sha256).compile.toVector
-              )
-              .flatMap { hashBytes =>
-                val hash = hashBytes.map("%02x".format(_)).mkString
-                if (hash === expectedSHA.toLowerCase()) Stream.emit(()).covary[F]
-                else Stream.raiseError(new Exception(s"Sha256 sum doesn't match (expected: $expectedSHA, got: $hash)"))
-              }
-          }
-          .getOrElse(stream.void)
   }
 }
