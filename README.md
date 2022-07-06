@@ -9,7 +9,7 @@ Simple library to download a potentially large file over a potentially slow netw
 Currently only Scala 2.13.x is supported.
 
 ```scala
-   libraryDependencies += "com.gaborpihaj" %% "fetchfile" % "0.3.0"
+   libraryDependencies += "com.gaborpihaj" %% "fetchfile" % "0.4.0"
 ```
 
 ## Usage
