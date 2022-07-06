@@ -17,5 +17,5 @@ object Http4sClient {
         }
 
   private[this] def contentLength(headers: Headers): Long =
-    headers.get(`Content-Length`).map(_.length).getOrElse(0L)
+    headers.get[`Content-Length`].map(_.length).getOrElse(0L)
 }

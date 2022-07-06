@@ -1,15 +1,12 @@
 package vdx.fetchfile
 
-import cats.effect.ContextShift
 import cats.effect.IO
-import cats.syntax.eq._
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalacheck.{Gen, Prop}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.Checkers
 import vdx.fetchfile.Downloader.ContentLength
-
-import scala.concurrent.ExecutionContext
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
 class ProgressSpec extends AnyFlatSpec with Checkers {
@@ -20,8 +17,8 @@ class ProgressSpec extends AnyFlatSpec with Checkers {
   "custom" should "create a custom progress tracker that calls the given function after each chunk" in {
     check(
       Prop.forAll(bytes) { bs =>
-        implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
         var elapsedTime: Long = 0
+
         implicit val clock: MonotonicClock = new MonotonicClock {
           def nanoTime(): Long = {
             elapsedTime += 1000000

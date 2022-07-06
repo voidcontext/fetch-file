@@ -2,11 +2,10 @@ package vdx.fetchfile
 
 import cats.Applicative
 import cats.effect.Concurrent
-import cats.effect.concurrent.Ref
+import cats.effect.{Async, Ref}
 import cats.instances.string._
 import cats.kernel.Semigroup
 import cats.syntax.eq._
-import cats.syntax.functor._
 import cats.syntax.semigroup._
 import fs2.{Pipe, RaiseThrowable, Stream}
 
@@ -22,18 +21,22 @@ object Pipes {
    * @param  shaRef The ref that holds the bytes of the SHA sum
    * @param  S      The implicit Semigroup instance of G[Byte]
    */
-  def collectSHA256[F[_]: Concurrent, G[_]: Applicative](
+  def collectSHA256[F[_]: Async, G[_]: Applicative](
     shaRef: Ref[F, G[Byte]]
   )(implicit S: Semigroup[G[Byte]]): Pipe[F, Byte, Byte] =
-    _.observe(_.through(fs2.hash.sha256).evalTap(byte => shaRef.update(_ |+| Applicative[G].pure(byte))).void)
+    _.observe(
+      _.through(fs2.hash.sha256)
+        .evalTap(byte => shaRef.update(_ |+| Applicative[G].pure(byte)))
+        .drain
+    )
 
   /**
-   * An fs2 Pipe that compares the stream's SHA-256 sum to the given `
+   * An fs2 Pipe that compares the stream's SHA-256 sum to the given
    * @tparam F
    * @param  expectedSHA
    * @param  C
    */
-  def ensureSHA256[F[_]: RaiseThrowable](expectedSHA: String)(implicit C: Stream.Compiler[F, F]): Pipe[F, Byte, Unit] =
+  def ensureSHA256[F[_]: RaiseThrowable: Concurrent](expectedSHA: String): Pipe[F, Byte, Unit] =
     stream =>
       Stream
         .eval(

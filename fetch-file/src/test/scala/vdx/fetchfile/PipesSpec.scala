@@ -1,8 +1,8 @@
 package vdx.fetchfile
 
-import cats.effect.ContextShift
 import cats.effect.IO
-import cats.effect.concurrent.Ref
+import cats.effect.Ref
+import cats.effect.unsafe.implicits.global
 import cats.instances.list._
 import fs2.Stream
 import org.scalacheck.Arbitrary
@@ -13,14 +13,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.claimant.Claim
 
-import scala.concurrent.ExecutionContext
-
 import java.security.MessageDigest
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.=="))
 class PipesSpec extends AnyWordSpec with Matchers with TestHttpClient with Checkers {
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-
   val testText = "This is a test text"
   val expectedShaSum = "c62968ebcd6b7c706a8ac082db862682fa8be407106cb7eaa050c713a4e969d7"
 

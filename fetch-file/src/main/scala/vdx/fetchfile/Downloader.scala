@@ -54,9 +54,8 @@ object Downloader {
   /**
    * Creates a `Downloader` that is going to run all blocking operations on the given ExecutionContext.
    */
-  def apply[F[_]: Concurrent: ContextShift](
-    ec: Blocker,
-    progress: ContentLength => Pipe[F, Byte, Unit] = Progress.noop[F]
+  def apply[F[_]: Async](
+    progress: ContentLength => Pipe[F, Byte, Nothing] = Progress.noop[F]
   )(implicit client: HttpClient[F]): Downloader[F] = new Downloader[F] {
     def fetch[G[_]: Foldable](
       url: URL,
@@ -68,7 +67,7 @@ object Downloader {
         client(url) { (contentLength, body) =>
           pipes
             .foldLeft(body.observe(progress(contentLength)))(_ through _)
-            .observe(writeOutputStream[F](Concurrent[F].delay(outStream), ec))
+            .observe(writeOutputStream[F](Async[F].delay(outStream)))
             .through(last)
             .compile
             .drain

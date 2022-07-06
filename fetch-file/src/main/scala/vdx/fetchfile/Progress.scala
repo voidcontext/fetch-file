@@ -12,12 +12,12 @@ object Progress {
   /**
    * A progress tracker that does nothing
    */
-  def noop[F[_]]: ContentLength => Pipe[F, Byte, Unit] = _ => _.map(_ => ())
+  def noop[F[_]]: ContentLength => Pipe[F, Byte, Nothing] = _ => _.drain
 
   /**
    * A console based progress tracker which needs control character support as it refreshes the status in place.
    */
-  def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Unit] =
+  def consoleProgress[F[_]: Sync](implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Nothing] =
     custom[F] { (downloadedBytes, contentLength, elapsedTime, downloadSpeed) =>
       println(
         s"\u001b[1A\u001b[100D\u001b[0KDownloaded ${bytesToString(downloadedBytes)} of " +
@@ -33,23 +33,26 @@ object Progress {
   def custom[F[_]: Sync](
     f: (Long, ContentLength, Long, Long) => Unit,
     chunkLimit: Option[Int] = None
-  )(implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Unit] =
+  )(implicit clock: MonotonicClock): ContentLength => Pipe[F, Byte, Nothing] =
     contentLength => {
       s =>
-        Stream.eval(Sync[F].delay(clock.nanoTime())).flatMap { startTime =>
-          val downloadedBytes = new AtomicLong(0)
+        Stream
+          .eval(Sync[F].delay(clock.nanoTime()))
+          .flatMap { startTime =>
+            val downloadedBytes = new AtomicLong(0)
 
-          chunkLimit
-            .map(s.chunkLimit(_))
-            .getOrElse(s.chunks)
-            .map { chunk =>
-              val down = downloadedBytes.addAndGet(chunk.size.toLong)
-              val elapsedTime = (clock.nanoTime() - startTime) / 1000000
-              val speed = (down * 1000) / Math.max(elapsedTime, 1)
+            chunkLimit
+              .map(s.chunkLimit(_))
+              .getOrElse(s.chunks)
+              .map { chunk =>
+                val down = downloadedBytes.addAndGet(chunk.size.toLong)
+                val elapsedTime = (clock.nanoTime() - startTime) / 1000000
+                val speed = (down * 1000) / Math.max(elapsedTime, 1)
 
-              f(down, contentLength, elapsedTime, speed)
-            }
-        }
+                f(down, contentLength, elapsedTime, speed)
+              }
+          }
+          .drain
     }
 
   def millisToString(millis: Long): String =
